@@ -6,6 +6,6 @@ module top (
     wire n4;
     assign n4 = in1 & in2;
     assign out1 = n4 & in3;
-    assign out2 = n2 & n3;
+    assign out2 = in2 & in3;
     assign out3 = in1 & in3;
 endmodule

@@ -8,12 +8,13 @@
 int main ()
 {
     mockturtle::xag_network xag;
-    auto const read_stats = lorina::read_verilog( "../experiments/benchmarks/AND_3_1.v", mockturtle::verilog_reader( xag ) );
+    auto const read_stats = lorina::read_verilog( "../experiments/benchmarks/AND_4_2.v", mockturtle::verilog_reader( xag ) );
     if ( read_stats != lorina::return_code::success )
     {
         std::cerr << "[e] Failed to read benchmark...\n";
         return -1;
     }
+    std::cout << "[m] The benchmark is successfully loaded.\n";
     // const auto  in1 = xag.create_pi();
     // const auto  in2 = xag.create_pi();
     // const auto  in3 = xag.create_pi();
@@ -28,14 +29,18 @@ int main ()
     ps.progress = true;
     ps.verbose = true;
     ps.search_timeout = 30u;
+    ps.max_steps = 100u;
     ps.increment_pebbles_on_failure = false;
     ps.decrement_pebbles_on_success = false;
     ps.optimize_weight = false;
     caterpillar::lookup_pebbling_mapping_strategy<mockturtle::xag_network, caterpillar::bsat_pebble_solver<mockturtle::xag_network>> strategy( ps );
+    // caterpillar::pebbling_mapping_strategy<mockturtle::xag_network, caterpillar::bsat_pebble_solver<mockturtle::xag_network>> strategy( ps );
 
-    // caterpillar::logic_network_synthHowesis_stats st;
-    // tweedledum::netlist<caterpillar::stg_gate> rcirc;
-    // caterpillar::logic_network_synthesis( rcirc, xag, strategy, {}, {}, &st );
+    caterpillar::logic_network_synthesis_stats ls_st;
+    tweedledum::netlist<caterpillar::stg_gate> rcirc;
+    caterpillar::logic_network_synthesis_params ls_ps;
+    // ls_ps.verbose = true;
+    caterpillar::logic_network_synthesis( rcirc, xag, strategy, {}, ls_ps, &ls_st );
 
     return 0;
 }
