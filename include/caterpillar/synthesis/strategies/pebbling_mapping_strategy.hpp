@@ -58,6 +58,35 @@ private:
   pebbling_mapping_strategy_params ps;
 };
 
+template<class Ntk, class Solver>
+class lookup_pebbling_mapping_strategy : public mapping_strategy<Ntk>
+{
+public:
+  lookup_pebbling_mapping_strategy( pebbling_mapping_strategy_params const& ps = {} )
+    : _ps( ps )
+  {
+    static_assert( mt::is_network_type_v<Ntk>, "LogicNetwork is not a network type" );
+    static_assert( mt::has_is_pi_v<Ntk>, "LogicNetwork does not implement the is_pi method" );
+    static_assert( mt::has_foreach_fanin_v<Ntk>, "LogicNetwork does not implement the foreach_fanin method" );
+    static_assert( mt::has_foreach_gate_v<Ntk>, "LogicNetwork does not implement the foreach_gate method" );
+    static_assert( mt::has_num_gates_v<Ntk>, "LogicNetwork does not implement the num_gates method" );
+    static_assert( mt::has_foreach_po_v<Ntk>, "LogicNetwork does not implement the foreach_po method" );
+    static_assert( mt::has_index_to_node_v<Ntk>, "LogicNetwork does not implement the index_to_node method" );
+  }
+
+  bool compute_steps( Ntk const& ntk ) override
+  {
+    this->steps() = lookup_pebble<Solver, Ntk> ( ntk, _ps );
+
+    if ( this->steps().empty() )
+      return false;
+    return true;
+  }
+
+private:
+  pebbling_mapping_strategy_params _ps;
+};
+
 #ifdef USE_Z3
 template<class LogicNetwork>
 class weighted_pebbling_mapping_strategy : public mapping_strategy<LogicNetwork>
