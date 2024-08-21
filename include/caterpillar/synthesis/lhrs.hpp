@@ -203,7 +203,7 @@ public:
           action );
     } );
 
-    prepare_outputs();
+    // prepare_outputs();
     return true;
   }
 

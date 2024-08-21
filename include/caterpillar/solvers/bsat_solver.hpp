@@ -71,6 +71,17 @@ public:
         solution_model[i].push_back( value );
       }
     }
+
+    std::cout << fmt::format( "[i] Strategy: Using {0} pebbles and {1} steps\n", _pebbles, _nr_steps );
+    for ( auto i = 0u; i < _nr_gates; ++i )
+    {
+      std::cout << fmt::format( "Gate {}: ", ( i + 1 ) );
+      for ( auto j = 0u; j <= _nr_steps; ++j )
+      {
+        std::cout << ( ( solver.var_value( pebble_var( j, i ) ) == 0 ) ? "0" : "1" );
+      }
+      std::cout << std::endl;
+    }
   }
 
   inline void add_edge_clause( int p, int p_n, int ch, int ch_n )
@@ -189,6 +200,16 @@ public:
     }
   }
 
+  void lookup_init( uint32_t num_steps )
+  {
+    solver.set_nr_vars( ( _nr_gates + extra ) * ( 1 + num_steps ) );
+    for ( uint32_t i{ 0u }; i < _nr_gates; ++i )
+    {
+      int lit = pabc::Abc_Var2Lit( i, 1 );
+      solver.add_clause( &lit, &lit + 1 );
+    }
+  }
+
   void lookup_add_step()
   {
     /* encode move */
@@ -268,7 +289,6 @@ public:
 
   void base_constraints( uint32_t num_steps )
   {
-    solver.set_nr_vars( ( _nr_gates + extra ) * ( 1 + num_steps ) );
     for ( _nr_steps = 1u; _nr_steps <= num_steps; ++_nr_steps )
     {
       lookup_add_step();
@@ -282,7 +302,7 @@ public:
       std::vector<uint32_t> each_node( _nr_steps );
       for ( auto each_step{ 1u }; each_step <= _nr_steps; ++each_step )
       {
-        each_node[each_step - 1] = static_cast<uint32_t>(pabc::Abc_Var2Lit( pebble_var( each_step, i ), 1 ));
+        each_node[each_step - 1] = static_cast<uint32_t>(pabc::Abc_Var2Lit( pebble_var( each_step, i ), 0 ));
       }
       solver.add_clause( each_node );
     } );
@@ -303,6 +323,7 @@ public:
     _net.foreach_gate( [&]( auto n, auto i ) {
       p[i] = pabc::Abc_Var2Lit( pebble_var( _nr_steps, i ), 1 );
     } );
+    return solver.solve( &p[0], &p[0] + _nr_gates, conflict_limit );
   }
 
   inline int pebble_var( int step, int gate )

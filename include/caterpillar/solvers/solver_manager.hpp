@@ -130,6 +130,7 @@ Steps<Ntk> lookup_pebble( Ntk const& ntk, pebbling_mapping_strategy_params const
 {
   Steps<Ntk> steps;
   uint32_t pebble_limit = ps.pebble_limit ? ps.pebble_limit : ntk.num_gates();
+  // std::cout << "[m] The network has " << ntk.num_gates() << " gates.\n";
   mockturtle::progress_bar bar( pebble_limit, "|{0}| number of exploitable pebbles = {1}", ps.progress );
 
   for ( uint32_t num_pebbles{ 1u }; num_pebbles <= pebble_limit; ++num_pebbles )
@@ -140,14 +141,14 @@ Steps<Ntk> lookup_pebble( Ntk const& ntk, pebbling_mapping_strategy_params const
     for ( uint32_t num_steps{ 2u }; num_steps <= ps.max_steps; ++num_steps )
     {
       Solver solver( ntk, num_pebbles, ps.conflict_limit, ps.solver_timeout );
-      solver.init();
+      solver.lookup_init( num_steps );
       solver.base_constraints( num_steps );
       solver.all_reached_constraint();
       typename Solver::result result = solver.lookup_solve();
 
       if ( result == solver.sat() )
       {
-        std::cout << fmt::format( "[i] Found a valid solution!\n" );
+        std::cout << fmt::format( "\n[i] Found a valid solution!\n" );
         solver.save_model();
         steps = solver.extract_result();
         return steps;
@@ -155,19 +156,15 @@ Steps<Ntk> lookup_pebble( Ntk const& ntk, pebbling_mapping_strategy_params const
 
       else
       {
-        if ( duration_cast<seconds>( high_resolution_clock::now() - start ).count() <= ps.search_timeout )
+        if ( duration_cast<seconds>( high_resolution_clock::now() - start ).count() > ps.search_timeout )
         {
-          std::cout << fmt::format( "[i] Increasing the number of allowed steps...\n" );
-        }
-        else
-        {
-          std::cout << fmt::format( "[i] Met search time upper bound...\n" );
+          std::cout << fmt::format( "\n[i] Met search time upper bound...\n" );
           break;
         }
       }
     }
   }
-  std::cout << fmt::format( "[e] No solution found. Something went wrong...\n" );
+  std::cout << fmt::format( "\n[e] No solution found. Something went wrong...\n" );
   return steps;
 }
 
