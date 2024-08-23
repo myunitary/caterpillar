@@ -8,7 +8,7 @@
 int main ()
 {
     mockturtle::xag_network xag;
-    auto const read_stats = lorina::read_verilog( "../experiments/benchmarks/AND_4_2.v", mockturtle::verilog_reader( xag ) );
+    auto const read_stats = lorina::read_verilog( "../experiments/benchmarks/AND_4_4.v", mockturtle::verilog_reader( xag ) );
     if ( read_stats != lorina::return_code::success )
     {
         std::cerr << "[e] Failed to read benchmark...\n";

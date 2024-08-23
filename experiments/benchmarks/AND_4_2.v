@@ -2,8 +2,8 @@ module top (
     n7, n8, n9, n10, n11, n12, n14, n15, in1, in2, in3, in4
 );
     input in1, in2, in3, in4;
-    output n7, n13;
-    wire n5, n6, n8, n10, n12;
+    output n7, n8, n9, n10, n11, n12, n14, n15;
+    wire n5, n6, n13;
     assign  n5 = in1 & in2;
     assign  n6 =  n5 & in3;
     assign  n7 =  n6 & in4;
