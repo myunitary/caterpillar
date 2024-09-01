@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <mockturtle/utils/progress_bar.hpp>
+#include <mockturtle/views/depth_view.hpp>
 #include <caterpillar/synthesis/strategies/action.hpp>
 #include <caterpillar/solvers/z3_solver.hpp>
 #include <type_traits>
@@ -133,13 +134,49 @@ Steps<Ntk> lookup_pebble( Ntk const& ntk, pebbling_mapping_strategy_params const
   // std::cout << "[m] The network has " << ntk.num_gates() << " gates.\n";
   mockturtle::progress_bar bar( pebble_limit, "|{0}| number of exploitable pebbles = {1}", ps.progress );
 
-  for ( uint32_t num_pebbles{ 1u }; num_pebbles <= pebble_limit; ++num_pebbles )
+  if ( !ps.decrement_pebbles_on_success )
   {
-    bar( num_pebbles, num_pebbles );
-    auto start = high_resolution_clock::now();
-
-    for ( uint32_t num_steps{ 2u }; num_steps <= ps.max_steps; ++num_steps )
+    /* find the minimum number of pebbles without constraints on the resulting number of steps */
+    for ( uint32_t num_pebbles{ 2u }; num_pebbles <= pebble_limit; ++num_pebbles )
     {
+      bar( num_pebbles, num_pebbles );
+      auto start = high_resolution_clock::now();
+
+      for ( uint32_t num_steps{ 2u }; num_steps <= ps.max_steps; ++num_steps )
+      {
+        Solver solver( ntk, num_pebbles, ps.conflict_limit, ps.solver_timeout );
+        solver.lookup_init( num_steps );
+        solver.base_constraints( num_steps );
+        solver.all_reached_constraint();
+        typename Solver::result result = solver.lookup_solve();
+
+        if ( result == solver.sat() )
+        {
+          std::cout << fmt::format( "\n[i] Found a valid solution!\n" );
+          solver.save_model();
+          steps = solver.extract_result();
+          return steps;
+        }
+
+        else
+        {
+          if ( duration_cast<seconds>( high_resolution_clock::now() - start ).count() > ps.search_timeout )
+          {
+            std::cout << fmt::format( "\n[i] Met search time upper bound...\n" );
+            break;
+          }
+        }
+      }
+    }
+  }
+  else
+  {
+    /* given a fixed number of steps, find the minimum number of pebbles required */
+    uint32_t num_steps = mockturtle::depth_view<Ntk>{ ntk }.depth() * 2;
+    for ( uint32_t num_pebbles{ 2u }; num_pebbles <= pebble_limit; ++num_pebbles )
+    {
+      bar( num_pebbles, num_pebbles );
+      auto start = high_resolution_clock::now();
       Solver solver( ntk, num_pebbles, ps.conflict_limit, ps.solver_timeout );
       solver.lookup_init( num_steps );
       solver.base_constraints( num_steps );
@@ -152,15 +189,6 @@ Steps<Ntk> lookup_pebble( Ntk const& ntk, pebbling_mapping_strategy_params const
         solver.save_model();
         steps = solver.extract_result();
         return steps;
-      }
-
-      else
-      {
-        if ( duration_cast<seconds>( high_resolution_clock::now() - start ).count() > ps.search_timeout )
-        {
-          std::cout << fmt::format( "\n[i] Met search time upper bound...\n" );
-          break;
-        }
       }
     }
   }
