@@ -23,7 +23,7 @@ struct pebbling_mapping_strategy_params
   bool verbose{false};
 
   /*! \brief Maximum number of pebbles to use, if supported by mapping strategy (0 means no limit). */
-  uint32_t pebble_limit{0u};
+  uint32_t pebble_limit{0};
 
   /*! \brief Maximum number of steps */
   uint32_t max_steps{std::numeric_limits<uint32_t>::max()};
@@ -137,12 +137,12 @@ Steps<Ntk> lookup_pebble( Ntk const& ntk, pebbling_mapping_strategy_params const
   if ( !ps.decrement_pebbles_on_success )
   {
     /* find the minimum number of pebbles without constraints on the resulting number of steps */
-    for ( uint32_t num_pebbles{ 2u }; num_pebbles <= pebble_limit; ++num_pebbles )
+    for ( uint32_t num_pebbles{ 3u }; num_pebbles <= pebble_limit; ++num_pebbles )
     {
       bar( num_pebbles, num_pebbles );
       auto start = high_resolution_clock::now();
 
-      for ( uint32_t num_steps{ 2u }; num_steps <= ps.max_steps; ++num_steps )
+      for ( uint32_t num_steps{ 51u }; num_steps <= ps.max_steps; ++num_steps )
       {
         Solver solver( ntk, num_pebbles, ps.conflict_limit, ps.solver_timeout );
         solver.lookup_init( num_steps );
@@ -172,23 +172,35 @@ Steps<Ntk> lookup_pebble( Ntk const& ntk, pebbling_mapping_strategy_params const
   else
   {
     /* given a fixed number of steps, find the minimum number of pebbles required */
-    uint32_t num_steps = mockturtle::depth_view<Ntk>{ ntk }.depth() * 2;
-    for ( uint32_t num_pebbles{ 2u }; num_pebbles <= pebble_limit; ++num_pebbles )
+    // uint32_t num_steps = mockturtle::depth_view<Ntk>{ ntk }.depth() * 2;
+    for ( uint32_t num_steps = mockturtle::depth_view<Ntk>{ ntk }.depth() * 2; num_steps <= ps.max_steps; ++num_steps )
     {
-      bar( num_pebbles, num_pebbles );
-      auto start = high_resolution_clock::now();
-      Solver solver( ntk, num_pebbles, ps.conflict_limit, ps.solver_timeout );
-      solver.lookup_init( num_steps );
-      solver.base_constraints( num_steps );
-      solver.all_reached_constraint();
-      typename Solver::result result = solver.lookup_solve();
-
-      if ( result == solver.sat() )
+      for ( uint32_t num_pebbles{ 42u }; num_pebbles <= pebble_limit; ++num_pebbles )
       {
-        std::cout << fmt::format( "\n[i] Found a valid solution!\n" );
-        solver.save_model();
-        steps = solver.extract_result();
-        return steps;
+        bar( num_pebbles, num_pebbles );
+        auto start = high_resolution_clock::now();
+        Solver solver( ntk, num_pebbles, ps.conflict_limit, ps.solver_timeout );
+        solver.lookup_init( num_steps );
+        solver.base_constraints( num_steps );
+        solver.all_reached_constraint();
+        typename Solver::result result = solver.lookup_solve();
+
+        if ( result == solver.sat() )
+        {
+          std::cout << fmt::format( "\n[i] Found a valid solution!\n" );
+          solver.save_model();
+          steps = solver.extract_result();
+          return steps;
+        }
+
+        else
+        {
+          if ( duration_cast<seconds>( high_resolution_clock::now() - start ).count() > ps.search_timeout )
+          {
+            std::cout << fmt::format( "\n[i] Met search time upper bound...\n" );
+            break;
+          }
+        }
       }
     }
   }

@@ -72,16 +72,39 @@ public:
       }
     }
 
-    std::cout << fmt::format( "[i] Strategy: Using {0} pebbles and {1} steps\n", _pebbles, _nr_steps );
+    uint32_t num_comput{ 0u }, num_tof_depth{ 0u };
+    std::vector<bool> compt( _nr_gates, false );
     for ( auto i = 0u; i < _nr_gates; ++i )
     {
       std::cout << fmt::format( "Gate {}: ", ( i + 1 ) );
       for ( auto j = 0u; j <= _nr_steps; ++j )
       {
         std::cout << ( ( solver.var_value( pebble_var( j, i ) ) == 0 ) ? "0" : "1" );
+        if ( j != _nr_steps )
+        {
+          if ( ( solver.var_value( pebble_var( j, i ) ) == 0 ) && ( solver.var_value( pebble_var( j + 1, i ) ) == 1 ) )
+          {
+            ++num_comput;
+          }
+        }
+        if ( j > 0 && !compt[j - 1] )
+        {
+          if ( ( solver.var_value( pebble_var( j, i ) ) == 1 ) && ( solver.var_value( pebble_var( j - 1, i ) ) == 0 ) )
+          {
+            compt[j - 1] = true;
+          }
+        }
       }
       std::cout << std::endl;
     }
+    for ( auto const& compt_each_step : compt )
+    {
+      if ( compt_each_step )
+      {
+        ++num_tof_depth;
+      }
+    }
+    std::cout << fmt::format( "[i] Strategy: Using {0} pebbles and {1} steps ( Toffoli depth: {2} ), with {3} nodes computed in total.\n", _pebbles, _nr_steps, num_tof_depth, num_comput );
   }
 
   inline void add_edge_clause( int p, int p_n, int ch, int ch_n )
@@ -227,6 +250,35 @@ public:
         }
       } );
     } );
+
+    /* exclude qubit contention */
+    // mockturtle::fanout_view<Network> _net_fanout{_net};
+    // _net.foreach_node( [&]( auto const& n, auto i ) {
+    //   if ( !_net_fanout.is_constant( n ) )
+    //   {
+    //       _net_fanout.foreach_fanout( n, [&]( auto const& fo1_node ) {
+    //       const uint32_t fo1_var = pebble_var( _nr_steps - 1, gate_to_index[fo1_node] );
+    //       const uint32_t fo1_var_next_step = pebble_var( _nr_steps, gate_to_index[fo1_node] );
+
+    //       _net_fanout.foreach_fanout( n, [&]( auto const& fo2_node ) {
+    //         if ( fo2_node == fo1_node )
+    //         {
+    //           return true;
+    //         }
+
+    //         const uint32_t fo2_var = pebble_var( _nr_steps - 1, gate_to_index[fo2_node] );
+    //         const uint32_t fo2_var_next_step = pebble_var( _nr_steps, gate_to_index[fo2_node] );
+    //         int lits[4];
+    //         lits[0] = pabc::Abc_Var2Lit( fo1_var, 0 );
+    //         lits[1] = pabc::Abc_Var2Lit( fo1_var_next_step, 1 );
+    //         lits[2] = pabc::Abc_Var2Lit( fo2_var, 0 );
+    //         lits[3] = pabc::Abc_Var2Lit( fo2_var_next_step, 1 );
+    //         solver.add_clause( lits, lits + 4 );
+    //         return true;
+    //       } );
+    //     } );
+    //   }
+    // } );
 
     /* cardinality constraint */
     if ( ( _pebbles > 0 ) && ( _nr_gates > _pebbles ) )
